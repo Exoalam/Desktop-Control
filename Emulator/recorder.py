@@ -9,6 +9,7 @@ from pynput.keyboard import Key, Controller as KeyboardController
 from gui import setup_gui
 from input_handlers import on_move, on_click, on_scroll, on_press, on_release
 from playback import play_recording
+import ctypes
 
 class ActionRecorderPlayer:
     def __init__(self, root):
@@ -24,8 +25,13 @@ class ActionRecorderPlayer:
         self.save_location = ""
         self.last_key = None
         self.underscore_pressed = False
+        self.original_resolution = self.get_screen_resolution()
 
         setup_gui(self)
+
+    def get_screen_resolution(self):
+        user32 = ctypes.windll.user32
+        return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
     def toggle_recording(self):
         if not self.is_recording:
@@ -78,8 +84,12 @@ class ActionRecorderPlayer:
         
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if file_path:
+            data = {
+                "actions": self.actions,
+                "original_resolution": self.original_resolution
+            }
             with open(file_path, 'w') as f:
-                json.dump(self.actions, f)
+                json.dump(data, f)
             messagebox.showinfo("Save Successful", f"Recording saved to {file_path}")
 
     def load_recording(self):
@@ -87,7 +97,9 @@ class ActionRecorderPlayer:
         if file_path:
             try:
                 with open(file_path, 'r') as f:
-                    self.actions = json.load(f)
+                    data = json.load(f)
+                    self.actions = data["actions"]
+                    self.original_resolution = data.get("original_resolution", self.get_screen_resolution())
                 messagebox.showinfo("Load Successful", f"Loaded {len(self.actions)} actions from {file_path}")
             except json.JSONDecodeError:
                 messagebox.showerror("Invalid File", "The file is not a valid recording.")
@@ -102,4 +114,6 @@ class ActionRecorderPlayer:
             return int(self.incremental_entry.get())
         except ValueError:
             messagebox.showwarning("Invalid Input", "Please enter a valid number for the initial incremental value.")
-            return 1 
+            return 1  # Default to 1 if input is invalid
+
+# ... (rest of the code remains the same)
